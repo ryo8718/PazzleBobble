@@ -1,18 +1,17 @@
-#include "Main.h"
-#include "Game.h"
+#include "Bobble.h";
 
-void BobbleInit()
+void Bobble_Init()
 {
 }
 
-void BobbleUpdate()
+void Bobble_Update()
 {
 }
 
-void BobbleRender()
+void Bobble_Render()
 {
 }
 
-void BobbleExit()
+void Bobble_Exit()
 {
 }
