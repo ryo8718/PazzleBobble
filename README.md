@@ -1,2 +1,2 @@
-# PazzleBobble
+# PuzzleBobble
 パズルボブル
