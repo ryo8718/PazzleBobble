@@ -18,7 +18,7 @@
 // --- 外部変数の参照 ---
 extern int stage_image;
 extern int bubble_images[5];
-extern int launcher_image;
+extern int cannon_image;
 
 // --- ステージ内変数 ---
 int Map[GRID_H][GRID_W];
@@ -153,8 +153,10 @@ void StageRender() {
 		}
 	}
 
+	DrawBox(FIELD_OFFSET_X - 2, FIELD_TOP - 2, FIELD_OFFSET_X + FIELD_WIDTH + 2, FIELD_TOP + GRID_H * BUBBLE_SIZE + 2, GetColor(255, 255, 255), FALSE);
+
 	// 砲台
-	DrawRotaGraph(LAUNCHER_X, LAUNCHER_Y, 1.0, shot_bubble.angle + 1.5708f, launcher_image, TRUE);
+	DrawRotaGraph(LAUNCHER_X, LAUNCHER_Y, 1.0, shot_bubble.angle + 1.5708f, cannon_image, TRUE);
 
 	// 発射バブル
 	if (bubble_images[shot_bubble.color] > 0)

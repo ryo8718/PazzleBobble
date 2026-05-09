@@ -13,7 +13,7 @@ int title_image;
 int stage_image;
 int result_image;
 int button_image;
-int launcher_image;      // ★追加：砲台
+int cannon_image;      // ★追加：砲台
 int bubble_images[5];    // ★追加：玉（配列5個分）
 
 //---------------------------------------------------------------------------------
@@ -26,15 +26,15 @@ void GameInit()
 
 	// --- 画像の読み込み ---
 	// ※注意：ファイルがないと -1 が返りますが、プログラムは動きます
-	stage_image = LoadGraph("images/background.png");
-	launcher_image = LoadGraph("images/launcher.png");
-	bubble_images[1] = LoadGraph("images/bubble_red.png");
-	bubble_images[2] = LoadGraph("images/bubble_green.png");
-	bubble_images[3] = LoadGraph("images/bubble_blue.png");
-	bubble_images[4] = LoadGraph("images/bubble_yellow.png");
+	stage_image = LoadGraph("data/background.png");
+	cannon_image = LoadGraph("data/cannon.png");
+	bubble_images[1] = LoadGraph("data/bubble_red.png");
+	bubble_images[2] = LoadGraph("data/bubble_green.png");
+	bubble_images[3] = LoadGraph("data/bubble_blue.png");
+	bubble_images[4] = LoadGraph("data/bubble_yellow.png");
 
 	// タイトル画面などで使う画像があればここに追加
-	// title_image = LoadGraph("images/title.png");
+	// title_image = LoadGraph("data/title.png");
 
 	TitleInit();
 }
