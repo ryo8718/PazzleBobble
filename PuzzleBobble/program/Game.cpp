@@ -47,16 +47,32 @@ void GameUpdate()
 	if (scene_num != scene_next) {
 		scene_num = scene_next;
 		switch (scene_num) {
-		case SCENE_TITLE:  TitleInit();  break;
-		case SCENE_STAGE:  StageInit();  break;
-		case SCENE_RESULT: ResultInit(); break;
+		case SCENE_TITLE:  
+			TitleInit(); 
+			break;
+
+		case SCENE_STAGE:
+			StageInit();  
+			break;
+
+		case SCENE_RESULT:
+			ResultInit(); 
+			break;
 		}
 	}
 
 	switch (scene_num) {
-	case SCENE_TITLE:  TitleUpdate();  break;
-	case SCENE_STAGE:  StageUpdate();  break;
-	case SCENE_RESULT: ResultUpdate(); break;
+	case SCENE_TITLE:
+		TitleUpdate();
+		break;
+
+	case SCENE_STAGE:
+		StageUpdate();
+		break;
+
+	case SCENE_RESULT:
+		ResultUpdate();
+		break;
 	}
 }
 
@@ -66,9 +82,17 @@ void GameUpdate()
 void GameRender()
 {
 	switch (scene_num) {
-	case SCENE_TITLE:  TitleRender();  break;
-	case SCENE_STAGE:  StageRender();  break;
-	case SCENE_RESULT: ResultRender(); break;
+	case SCENE_TITLE:
+		TitleRender();
+		break;
+
+	case SCENE_STAGE:
+		StageRender();
+		break;
+
+	case SCENE_RESULT:
+		ResultRender();
+		break;
 	}
 }
 
