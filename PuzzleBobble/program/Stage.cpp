@@ -153,7 +153,7 @@ void StageRender() {
 		}
 	}
 
-	DrawBox(FIELD_OFFSET_X - 2, FIELD_TOP - 2, FIELD_OFFSET_X + FIELD_WIDTH + 2, FIELD_TOP + GRID_H * BUBBLE_SIZE + 2, GetColor(255, 255, 255), FALSE);
+	
 
 	// –C‘ä
 	DrawRotaGraph(LAUNCHER_X, LAUNCHER_Y, 1.0, shot_bubble.angle + 1.5708f, cannon_image, TRUE);
