@@ -366,6 +366,10 @@ void StageRender() {
         }
     }
 
+<<<<<<< HEAD
+=======
+	
+>>>>>>> cdb406a39dd891b4679e0309e936141065764b3f
 
     // –C‘ä
     DrawRotaGraph(launcherX, launcherY, 1.0, shot_bubble.angle + 1.5708f, cannon_image, TRUE);
