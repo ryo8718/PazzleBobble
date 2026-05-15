@@ -10,11 +10,11 @@ int scene_next;
 
 // --- 画像用変数の「実体」定義 ---
 int title_image;
-int stage_image;
+int stage_1_3_image;
 int result_image;
 int button_image;
 int cannon_image;      // ★追加：砲台
-int bubble_images[5];    // ★追加：玉（配列5個分）
+int bubble_images[100];    // ★追加：玉（配列96個分）
 
 //---------------------------------------------------------------------------------
 //	初期化処理
@@ -26,13 +26,13 @@ void GameInit()
 
 	// --- 画像の読み込み ---
 	// ※注意：ファイルがないと -1 が返りますが、プログラムは動きます
-	stage_image = LoadGraph("data/background.png");
+	stage_1_3_image = LoadGraph("data/stage_1_3.png");
 	cannon_image = LoadGraph("data/cannon.png");
 	bubble_images[1] = LoadGraph("data/bubble_red.png");
 	bubble_images[2] = LoadGraph("data/bubble_green.png");
 	bubble_images[3] = LoadGraph("data/bubble_blue.png");
 	bubble_images[4] = LoadGraph("data/bubble_yellow.png");
-
+	
 	// タイトル画面などで使う画像があればここに追加
 	// title_image = LoadGraph("data/title.png");
 

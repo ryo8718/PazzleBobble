@@ -28,6 +28,7 @@
       <Filter>program</Filter>
     </ClCompile>
     <ClCompile Include="program\Cannon.cpp" />
+    <ClCompile Include="program\bubble.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="program\Float2.h">
@@ -52,5 +53,6 @@
       <Filter>program</Filter>
     </ClInclude>
     <ClInclude Include="program\Cannon.h" />
+    <ClInclude Include="program\bubble.h" />
   </ItemGroup>
 </Project>

@@ -1,7 +1,7 @@
 #pragma once
 
-#define SCREEN_W	800
-#define SCREEN_H	450
+#define SCREEN_W	640
+#define SCREEN_H	464
 
 void GameInit();	//	‰Šú‰»ˆ—
 void GameUpdate();	//	XVˆ—

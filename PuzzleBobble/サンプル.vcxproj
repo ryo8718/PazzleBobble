@@ -151,6 +151,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="program\bubble.cpp" />
     <ClCompile Include="program\Cannon.cpp" />
     <ClCompile Include="program\Float2.cpp" />
     <ClCompile Include="program\Game.cpp" />
@@ -161,6 +162,7 @@
     <ClCompile Include="program\Title.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="program\bubble.h" />
     <ClInclude Include="program\Cannon.h" />
     <ClInclude Include="program\Float2.h" />
     <ClInclude Include="program\Game.h" />
