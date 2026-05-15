@@ -12,6 +12,8 @@ float GetRadian_Lengthatan2f(float sin, float cos);
 extern int stage_1_3_image;
 extern int cannon_image;      
 extern int bubble_images[];   
+int ceilingOffset = 0; // 天井が下がったピクセル数
+#define SCROLL_STEP  15 
 
 #define MAX_COLOR_NUM 4  // 赤、青、緑、黄
 
@@ -26,10 +28,35 @@ extern int bubble_images[];
 #define OFFSET_X 205
 #define OFFSET_Y 60
 
+#define WALL_LEFT 190   
+#define WALL_RIGHT 446 
+
+#define CEILING_OFFSET_X  190
+#define CEILING_IMAGE_HEIGHT  40
+
 #define CANNON_DEFAULT_DEG  -90.0f // 真上
 #define CANNON_MIN_DEG  -170.0f     // 左
 #define CANNON_MAX_DEG  -10.0f      // 右
 #define CANNON_ROTATE_SPEED  2.0f  // 1フレームに動く度数
+
+#define SHOT_LIMIT 8
+
+const int STAGE_DATA_1[STAGE_ROWS][STAGE_COLS] = {
+    {1, 0, 2, 0, 0, 4, 4, 0}, // 0行目
+    {1, 0, 2, 0, 0, 0, 0, 0}, // 1行目（奇数行）
+    {1, 0, 0, 0, 0, 0, 0, 0}, // 2行目
+    {1, 0, 0, 0, 0, 0, 0, 0}, // 3行目...
+    {1, 0, 0, 0, 0, 0, 0, 0},
+    {1, 0, 0, 0, 0, 0, 0, 0},
+    {1, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0}
+};
+
+
 
 // Bubble speed
 #define B_SPEED 8.0f
@@ -63,8 +90,10 @@ private:
 public:
     Stage();
     void Init();
+    void LoadStage();
     void HandleInput();
     void Update();
+    void ScrollDown();
 	void CheckConnect(int r, int c, int color);
 	void ProcessErase(int startR, int startC);
     void DropFloatingBubbles();

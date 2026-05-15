@@ -15,6 +15,7 @@ int result_image;
 int button_image;
 int cannon_image;      // ★追加：砲台
 int bubble_images[5];    // ★追加：玉（配列96個分）
+int ceiling_image;
 
 //---------------------------------------------------------------------------------
 //	初期化処理

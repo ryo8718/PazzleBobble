@@ -2,26 +2,33 @@
 #include <cmath>
 #include <vector>
 
+int shotCount = 0;
+
 static Stage stage;
 
 Stage::Stage() {
     Init();
 }
 
+void Stage::LoadStage() {
+    for (int r = 0; r < STAGE_ROWS; r++) {
+        for (int c = 0; c < STAGE_COLS; c++) {
+            // 設計図(STAGE_DATA_1)から実際のフィールド(field)へコピー
+            field[r][c] = STAGE_DATA_1[r][c];
+        }
+    }
+}
+
 void Stage::Init() {
-    cannon.Init(SCREEN_W / 2.0f, SCREEN_H - 60.0f);
+    LoadStage();
+    cannon.Init();
     cannonAngle = CANNON_DEFAULT_DEG;
     cannonX = SCREEN_W / 2.0f;
     cannonY = SCREEN_H - 40.0f;
 
     shotBubble.isActive = false;
 
-    for (int r = 0; r < 4; r++) { // 最初の4行に配置
-        for (int c = 0; c < STAGE_COLS; c++) {
-            // field[r][c] = GetColor(255, 0, 0); // ←これはNG
-            field[r][c] = (rand() % 4) + 1;       // 1〜4の番号を入れる
-        }
-    }
+    
 }
 
 void Stage::HandleInput() {
@@ -58,16 +65,19 @@ void Stage::Update() {
 
     // 2. 左右の壁での反射
     // 左端（OFFSET_X）
-    if (shotBubble.x < OFFSET_X) {
-        shotBubble.x = (float)OFFSET_X;
-        shotBubble.vx *= -1.0f; // 跳ね返り
+    if (shotBubble.x < WALL_LEFT + B_RADIUS) {
+        shotBubble.x = (float)(WALL_LEFT + B_RADIUS);
+        shotBubble.vx *= -1.0f;
     }
 
     // 右端（OFFSET_X + 8列分の幅）
     float rightLimit = (float)(OFFSET_X + (STAGE_COLS * B_DIAMETER));
-    if (shotBubble.x > rightLimit) {
-        shotBubble.x = rightLimit;
-        shotBubble.vx *= -1.0f; // 跳ね返り
+    if (shotBubble.x > WALL_RIGHT - B_RADIUS) {
+        // 1. 位置を壁のギリギリ内側に強制的に戻す
+        shotBubble.x = (float)(WALL_RIGHT - B_RADIUS);
+
+        // 2. 速度を反転
+        shotBubble.vx *= -1.0f;
     }
 
     // 3. 画面外（下）へ消えた場合のリセット（念のため）
@@ -97,8 +107,10 @@ void Stage::Update() {
         }
 
         // 天井に当たった判定
-        if (shotBubble.y <= B_RADIUS) {
+        if (shotBubble.y <= OFFSET_Y) {
+            shotBubble.y = OFFSET_Y; // めり込み防止：天井の高さに固定
             FixBubble();
+            return;
         }
     }
 }
@@ -182,32 +194,55 @@ void Stage::DropFloatingBubbles() {
     }
 }
 
+void Stage::ScrollDown() {
+    ceilingOffset += SCROLL_STEP;
+
+    // もし天井の「棒」や「壁」の画像があるなら、その描画位置もこれに合わせる
+
+}
+
 void Stage::FixBubble() {
-    // 1. まずはめり込み防止のため、当たった瞬間の速度分だけ少し戻す
+    // 1. 少し戻す（これはOK）
     shotBubble.x -= shotBubble.vx;
     shotBubble.y -= shotBubble.vy;
 
-    // 2. y座標から「行(r)」を計算
-    // (座標 - オフセット) / 1段の高さ で何行目かが出る。+0.5fは四捨五入のため
-    int r = (int)((shotBubble.y - OFFSET_Y) / ROW_HEIGHT + 0.5f);
+    // 2. 行(r)を計算
+    int r = (int)((shotBubble.y - OFFSET_Y + ceilingOffset) / ROW_HEIGHT + 0.5f);
 
-    // 3. その行の「列(c)」を計算
-    // 偶数行か奇数行かで、横の開始位置(OFFSET_X)が違うので注意
-    float currentOffsetX = (r % 2 == 0) ? OFFSET_X : OFFSET_X + B_RADIUS;
-    int c = (int)((shotBubble.x - currentOffsetX) / (B_RADIUS * 2) + 0.5f);
-
-    // 4. 計算した r, c が配列の範囲内かチェックして、fieldを更新
-    if (r >= 0 && r < STAGE_ROWS && c >= 0 && c < STAGE_COLS) {
-        // もし既にバブルがある場所に重なったら、その1つ手前の行にするなどの微調整が必要な場合もありますが、
-        // まずは単純に代入してみます。
-        field[r][c] = shotBubble.color;
-        ProcessErase(r, c);
+    if (shotBubble.y <= OFFSET_Y + ceilingOffset + B_RADIUS) {
+        r = 0;
     }
 
+    // 天井より上に行き過ぎた場合は0行目にする
+    if (r < 0) r = 0;
+    // 底を突き抜けた場合は固定せずに消去
+    if (r >= STAGE_ROWS) {
+        shotBubble.isActive = false;
+        return;
+    }
+
+    // 3. 列(c)を計算
+    float currentOffsetX = (r % 2 == 0) ? OFFSET_X : OFFSET_X + B_RADIUS;
+    int c = (int)((shotBubble.x - currentOffsetX) / (B_RADIUS * 2) + 0.4f);
+
+    // ★重要：列(c)の範囲外チェックと補正
+    if (c < 0) c = 0;
+    if (c >= STAGE_COLS) c = STAGE_COLS - 1;
+
+    field[r][c] = shotBubble.color;
+
+    // 消去と落下判定
+    ProcessErase(r, c);
     DropFloatingBubbles();
 
-    // 5. 飛ばしていたバブルを消去（再装填へ）
+    // 弾を非アクティブにする
     shotBubble.isActive = false;
+
+    shotCount++; // 発射回数をカウント
+    if (shotCount >= SHOT_LIMIT) {
+        ScrollDown();  // 天井を下げる関数を呼ぶ
+        shotCount = 0; // カウントリセット
+    }
 }
 
 void Stage::ProcessErase(int startR, int startC) {
@@ -242,7 +277,7 @@ int Stage::GetX(int r, int c) {
 }
 
 int Stage::GetY(int r) {
-    return OFFSET_Y + (r * ROW_HEIGHT);
+    return OFFSET_Y + ceilingOffset + (r * ROW_HEIGHT);
 }
 
 void Stage::Draw() {
@@ -270,6 +305,10 @@ void Stage::Draw() {
             }
         }
     }
+
+    int ceilingImgY = (OFFSET_Y + ceilingOffset) - CEILING_IMAGE_HEIGHT;
+    DrawGraph(CEILING_OFFSET_X, ceilingImgY, ceiling_image, TRUE);
+
     // キャノンを描画
     cannon.Draw();
 
@@ -286,6 +325,13 @@ void Stage::Draw() {
     }
     // 飛んでいるバブルを描画
     shotBubble.Draw();
+
+    // マウスの座標を格納する変数
+    int mx, my;
+    GetMousePoint(&mx, &my);
+
+    // 画面左上に現在のマウス座標を表示
+    DrawFormatString(0, 0, GetColor(255, 255, 255), "X=%d Y=%d", mx, my);
 }
 
 // Procedural wrappers
