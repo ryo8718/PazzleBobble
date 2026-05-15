@@ -141,7 +141,7 @@ float TO_DEGREE( float radian )
 //---------------------------------------------------------------------------------
 //	長さ 1.0f の線を rot 分回転させたときに rot に沿っている分の長さを取得する関数
 //---------------------------------------------------------------------------------
-float GetLength_RotSotte( float rot )
+float GetLength_Rotcos( float rot )
 {
 	//	cos（コサイン）関数です
 	return cosf( rot );
@@ -149,7 +149,7 @@ float GetLength_RotSotte( float rot )
 //---------------------------------------------------------------------------------
 //	長さ 1.0f の線を rot 分回転させたときに rot の向かいにある分の長さを取得する関数
 //---------------------------------------------------------------------------------
-float GetLength_RotMukai( float rot )
+float GetLength_Rotsin( float rot )
 {
 	//	sin（サイン）関数です
 	return sinf( rot );
@@ -157,8 +157,8 @@ float GetLength_RotMukai( float rot )
 //---------------------------------------------------------------------------------
 //	長さ（向かい・沿って）でできる斜め線がどの向きなのかをラジアン角で返す関数
 //---------------------------------------------------------------------------------
-float GetRadian_LengthMukaiSotte( float mukai, float sotte )
+float GetRadian_Lengthatan2f( float sin, float cos )
 {
 	//	アークタンジェント関数です
-	return atan2f( mukai, sotte );
+	return atan2f( sin, cos );
 }

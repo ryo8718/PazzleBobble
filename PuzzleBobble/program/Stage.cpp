@@ -1,395 +1,314 @@
-#include "Main.h"
-#include "Game.h"
-#include "Stage.h"
-#include <math.h>
+ï»¿#include "Stage.h"
+#include <cmath>
 #include <vector>
 
-// --- ’è” ---
-#define ROT_SPEED      0.03f 
+static Stage stage;
 
-#include "bubble.h"
+Stage::Stage() {
+    Init();
+}
 
-// ƒoƒuƒ‹ŠÖ˜A‚Í bubble.h / bubble.cpp ‚ÉˆÚ“®‚µ‚Ä‚¢‚Ü‚·
+void Stage::Init() {
+    cannon.Init(SCREEN_W / 2.0f, SCREEN_H - 60.0f);
+    cannonAngle = CANNON_DEFAULT_DEG;
+    cannonX = SCREEN_W / 2.0f;
+    cannonY = SCREEN_H - 40.0f;
 
-// --- ŠO•”•Ï”‚ÌQÆ ---
-extern int stage_1_3_image;
-extern int bubble_images[100];
-extern int cannon_image;
+    shotBubble.isActive = false;
 
-// --- ƒXƒe[ƒW“à•Ï” ---
-int Map[GRID_H][GRID_W];
+    for (int r = 0; r < 4; r++) { // æœ€åˆã®4è¡Œã«é…ç½®
+        for (int c = 0; c < STAGE_COLS; c++) {
+            // field[r][c] = GetColor(255, 0, 0); // â†ã“ã‚Œã¯NG
+            field[r][c] = (rand() % 4) + 1;       // 1ã€œ4ã®ç•ªå·ã‚’å…¥ã‚Œã‚‹
+        }
+    }
+}
 
-struct {
-	float x, y;
-	float angle;
-	bool  active;
-	int   color;
-} shot_bubble;
+void Stage::HandleInput() {
+    // 1. ã‚­ãƒ£ãƒãƒ³ã®æ—‹å›
+    if (CheckHitKey(KEY_INPUT_LEFT)) {
+        cannon.angle -= CANNON_ROTATE_SPEED;
+    }
+    if (CheckHitKey(KEY_INPUT_RIGHT)) {
+        cannon.angle += CANNON_ROTATE_SPEED;
+    }
 
-// --- ƒXƒe[ƒW’è‹` (‚±‚±‚É”z—ñ‚Å”z’u‚ğ‹Lq‚µ‚Ü‚·) ---
-// ’l: 0=‹ó, 1..4=F”Ô†
-static const int Stage1[GRID_H][GRID_W] = {
-    {1,2,3,4,1,2,3,4},
-    {2,1,2,1,2,1,2,1},
-    {3,0,3,0,3,0,3,0},
-    {4,0,0,0,4,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0}
-};
+    // 2. è§’åº¦åˆ¶é™ï¼ˆãƒã‚¯ãƒ­å®šæ•°ã‚’ä½¿ç”¨ï¼‰
+    if (cannonAngle < CANNON_MIN_DEG) cannon.angle = CANNON_MIN_DEG;
+    if (cannonAngle > CANNON_MAX_DEG) cannon.angle = CANNON_MAX_DEG;
 
-// Œ»İ“Ç‚İ‚ŞƒXƒe[ƒW‚ğw’è (•K—v‚È‚ç•¡”‚ÌƒXƒe[ƒW‚ğ’è‹`‚µ‚ÄØ‚è‘Ö‚¦‚ç‚ê‚Ü‚·)
-static const int (*CurrentStage)[GRID_W] = Stage1;
+    // 3. ç™ºå°„å‡¦ç†
+    if (CheckHitKey(KEY_INPUT_SPACE) && !shotBubble.isActive) {
+        float vx = cosf(TO_RADIAN(cannon.angle)) * 5.0f;
+        float vy = sinf(TO_RADIAN(cannon.angle)) * 5.0f;
+        shotBubble.Init(cannon.x, cannon.y, vx, vy, cannon.currentColor);
+        shotBubble.isActive = true;
 
-// Šp“xŠÖ˜A‚Ìƒwƒ‹ƒp[iStage.cpp ‚Ìæ“ª‚É’Ç‰Áj
-static inline float GetLength_RotCos(float rad) { return cosf(rad); }
-static inline float GetLength_RotSin(float rad) { return sinf(rad); }
-static inline float GetRadian_Atan2(float y, float x) { return atan2f(y, x); }
+        cannon.currentColor = GetRand(MAX_COLOR_NUM - 1) + 1;
+    }
+}
 
-// ‰¼‚Ìƒoƒuƒ‹Fƒ}ƒbƒvi‰æ‘œ–¢İ’è‚Ég‚¤j
-static int GetBubbleColor(int id)
+void Stage::Update() {
+    // ãƒãƒ–ãƒ«ãŒé£›ã‚“ã§ã„ãªã„ã¨ãã¯ä½•ã‚‚ã—ãªã„
+    if (!shotBubble.isActive) return;
+
+    // 1. ç§»å‹•
+    shotBubble.x += shotBubble.vx;
+    shotBubble.y += shotBubble.vy;
+
+    // 2. å·¦å³ã®å£ã§ã®åå°„
+    // å·¦ç«¯ï¼ˆOFFSET_Xï¼‰
+    if (shotBubble.x < OFFSET_X) {
+        shotBubble.x = (float)OFFSET_X;
+        shotBubble.vx *= -1.0f; // è·³ã­è¿”ã‚Š
+    }
+
+    // å³ç«¯ï¼ˆOFFSET_X + 8åˆ—åˆ†ã®å¹…ï¼‰
+    float rightLimit = (float)(OFFSET_X + (STAGE_COLS * B_DIAMETER));
+    if (shotBubble.x > rightLimit) {
+        shotBubble.x = rightLimit;
+        shotBubble.vx *= -1.0f; // è·³ã­è¿”ã‚Š
+    }
+
+    // 3. ç”»é¢å¤–ï¼ˆä¸‹ï¼‰ã¸æ¶ˆãˆãŸå ´åˆã®ãƒªã‚»ãƒƒãƒˆï¼ˆå¿µã®ãŸã‚ï¼‰
+    if (shotBubble.y > SCREEN_H) {
+        shotBubble.isActive = false;
+    }
+    if (shotBubble.isActive) {
+        for (int r = 0; r < STAGE_ROWS; r++) {
+            for (int c = 0; c < STAGE_COLS; c++) {
+                // ãã“ã«ãƒãƒ–ãƒ«ãŒã‚ã‚‹å ´åˆã®ã¿åˆ¤å®š
+                if (field[r][c] != 0) {
+                    float targetX = (float)GetX(r, c);
+                    float targetY = (float)GetY(r);
+
+                    float dx = shotBubble.x - targetX;
+                    float dy = shotBubble.y - targetY;
+                    float distSq = dx * dx + dy * dy; // è·é›¢ã®2ä¹—
+
+                    // åŠå¾„20ãªã‚‰ã€ç›´å¾„40ã€‚40ã®2ä¹—ã§ã‚ã‚‹1600ã‚ˆã‚Šå°ã•ã‘ã‚Œã°æ¥è§¦
+                    if (distSq < (B_RADIUS * 2) * (B_RADIUS * 2)) {
+                        // å½“ãŸã£ãŸï¼
+                        FixBubble(); // å›ºå®šå‡¦ç†ã¸
+                        return;
+                    }
+                }
+            }
+        }
+
+        // å¤©äº•ã«å½“ãŸã£ãŸåˆ¤å®š
+        if (shotBubble.y <= B_RADIUS) {
+            FixBubble();
+        }
+    }
+}
+
+// æ¶ˆå»å€™è£œã®ãƒªã‚¹ãƒˆï¼ˆstd::vectorãªã©ã‚’ä½¿ã†ã¨ä¾¿åˆ©ï¼‰
+std::vector<std::pair<int, int>> eraseList;
+bool checked[STAGE_ROWS][STAGE_COLS];
+
+void Stage::CheckConnect(int r, int c, int color) {
+    // ç¯„å›²å¤–ãªã‚‰çµ‚äº†
+    if (r < 0 || r >= STAGE_ROWS || c < 0 || c >= STAGE_COLS) return;
+    // ã™ã§ã«ãƒã‚§ãƒƒã‚¯æ¸ˆã¿ã€ã¾ãŸã¯è‰²ãŒé•ãˆã°çµ‚äº†
+    if (checked[r][c] || field[r][c] != color) return;
+
+    // ãƒã‚§ãƒƒã‚¯æ¸ˆã¿ã«ã™ã‚‹
+    checked[r][c] = true;
+    eraseList.push_back({ r, c }); // æ¶ˆå»å€™è£œã«è¿½åŠ 
+
+    // éš£ã‚Šåˆã†6æ–¹å‘ã«å¯¾ã—ã¦è‡ªåˆ†è‡ªèº«ã‚’å‘¼ã³å‡ºã™ï¼ˆå†å¸°ï¼‰
+    // å¶æ•°è¡Œãƒ»å¥‡æ•°è¡Œã§éš£ã®ä½ç½®ãŒå°‘ã—å¤‰ã‚ã‚‹ã®ã§æ³¨æ„ï¼
+    int dr[6] = { -1, -1, 0, 0, 1, 1 };
+    int dc[6];
+    if (r % 2 == 0) {
+        int temp[] = { -1, 0, -1, 1, -1, 0 }; // å¶æ•°è¡Œã®éš£
+        for (int i = 0; i < 6; i++) dc[i] = temp[i];
+    }
+    else {
+        int temp[] = { 0, 1, -1, 1, 0, 1 };  // å¥‡æ•°è¡Œã®éš£
+        for (int i = 0; i < 6; i++) dc[i] = temp[i];
+    }
+
+    for (int i = 0; i < 6; i++) {
+        CheckConnect(r + dr[i], c + dc[i], color);
+    }
+}
+
+void Stage::CheckSafe(int r, int c) {
+    if (r < 0 || r >= STAGE_ROWS || c < 0 || c >= STAGE_COLS) return;
+    if (isSafe[r][c] || field[r][c] == 0) return;
+
+    // å¤©äº•ã‹ã‚‰ç¹‹ãŒã£ã¦ã„ã‚‹
+    isSafe[r][c] = true;
+
+    int dr[6] = { -1, -1, 0, 0, 1, 1 };
+    int dc[6];
+    if (r % 2 == 0) {
+        int temp[] = { -1, 0, -1, 1, -1, 0 };
+        for (int i = 0; i < 6; i++) dc[i] = temp[i];
+    }
+    else {
+        int temp[] = { 0, 1, -1, 1, 0, 1 };
+        for (int i = 0; i < 6; i++) dc[i] = temp[i];
+    }
+
+    for (int i = 0; i < 6; i++) {
+        CheckSafe(r + dr[i], c + dc[i]);
+    }
+}
+
+
+
+void Stage::DropFloatingBubbles() {
+    // å…¨ã¦ã‚’false
+    for (int r = 0; r < STAGE_ROWS; r++)
+        for (int c = 0; c < STAGE_COLS; c++) isSafe[r][c] = false;
+
+    
+    for (int c = 0; c < STAGE_COLS; c++) {
+        if (field[0][c] != 0) {
+            CheckSafe(0, c);
+        }
+    }
+
+    // æ¶ˆå»ï¼ˆã¾ãŸã¯è½ä¸‹ã•ã›ã‚‹ï¼‰
+    for (int r = 0; r < STAGE_ROWS; r++) {
+        for (int c = 0; c < STAGE_COLS; c++) {
+            if (field[r][c] != 0 && !isSafe[r][c]) {
+                field[r][c] = 0; 
+            }
+        }
+    }
+}
+
+void Stage::FixBubble() {
+    // 1. ã¾ãšã¯ã‚ã‚Šè¾¼ã¿é˜²æ­¢ã®ãŸã‚ã€å½“ãŸã£ãŸç¬é–“ã®é€Ÿåº¦åˆ†ã ã‘å°‘ã—æˆ»ã™
+    shotBubble.x -= shotBubble.vx;
+    shotBubble.y -= shotBubble.vy;
+
+    // 2. yåº§æ¨™ã‹ã‚‰ã€Œè¡Œ(r)ã€ã‚’è¨ˆç®—
+    // (åº§æ¨™ - ã‚ªãƒ•ã‚»ãƒƒãƒˆ) / 1æ®µã®é«˜ã• ã§ä½•è¡Œç›®ã‹ãŒå‡ºã‚‹ã€‚+0.5fã¯å››æ¨äº”å…¥ã®ãŸã‚
+    int r = (int)((shotBubble.y - OFFSET_Y) / ROW_HEIGHT + 0.5f);
+
+    // 3. ãã®è¡Œã®ã€Œåˆ—(c)ã€ã‚’è¨ˆç®—
+    // å¶æ•°è¡Œã‹å¥‡æ•°è¡Œã‹ã§ã€æ¨ªã®é–‹å§‹ä½ç½®(OFFSET_X)ãŒé•ã†ã®ã§æ³¨æ„
+    float currentOffsetX = (r % 2 == 0) ? OFFSET_X : OFFSET_X + B_RADIUS;
+    int c = (int)((shotBubble.x - currentOffsetX) / (B_RADIUS * 2) + 0.5f);
+
+    // 4. è¨ˆç®—ã—ãŸ r, c ãŒé…åˆ—ã®ç¯„å›²å†…ã‹ãƒã‚§ãƒƒã‚¯ã—ã¦ã€fieldã‚’æ›´æ–°
+    if (r >= 0 && r < STAGE_ROWS && c >= 0 && c < STAGE_COLS) {
+        // ã‚‚ã—æ—¢ã«ãƒãƒ–ãƒ«ãŒã‚ã‚‹å ´æ‰€ã«é‡ãªã£ãŸã‚‰ã€ãã®1ã¤æ‰‹å‰ã®è¡Œã«ã™ã‚‹ãªã©ã®å¾®èª¿æ•´ãŒå¿…è¦ãªå ´åˆã‚‚ã‚ã‚Šã¾ã™ãŒã€
+        // ã¾ãšã¯å˜ç´”ã«ä»£å…¥ã—ã¦ã¿ã¾ã™ã€‚
+        field[r][c] = shotBubble.color;
+        ProcessErase(r, c);
+    }
+
+    DropFloatingBubbles();
+
+    // 5. é£›ã°ã—ã¦ã„ãŸãƒãƒ–ãƒ«ã‚’æ¶ˆå»ï¼ˆå†è£…å¡«ã¸ï¼‰
+    shotBubble.isActive = false;
+}
+
+void Stage::ProcessErase(int startR, int startC) {
+    // 1. ä¸‹æº–å‚™
+    eraseList.clear();
+    for (int i = 0; i < STAGE_ROWS; i++)
+        for (int j = 0; j < STAGE_COLS; j++) checked[i][j] = false;
+
+    // 2. ã¤ãªãŒã‚Šã‚’èª¿ã¹ã‚‹
+    CheckConnect(startR, startC, field[startR][startC]);
+
+    // 3. 3ã¤ä»¥ä¸Šãªã‚‰ field ã‚’ 0ï¼ˆç©ºï¼‰ã«ã™ã‚‹
+    if (eraseList.size() >= 3) {
+        for (auto p : eraseList) {
+            field[p.first][p.second] = 0;
+            // ã“ã“ã§ã€Œå‰²ã‚Œã‚‹ã‚¨ãƒ•ã‚§ã‚¯ãƒˆã€ã‚’å‡ºã™ãƒ•ãƒ©ã‚°ã‚’ç«‹ã¦ã‚‹ã¨æœ€é«˜ï¼
+        }
+    }
+}
+
+bool isSafe[STAGE_ROWS][STAGE_COLS];
+
+
+
+
+int Stage::GetX(int r, int c) {
+    int x = OFFSET_X + (c * B_RADIUS * 2);
+    if (r % 2 != 0) { // å¥‡æ•°è¡Œãªã‚‰åŠåˆ†ãšã‚‰ã™
+        x += B_RADIUS;
+    }
+    return x;
+}
+
+int Stage::GetY(int r) {
+    return OFFSET_Y + (r * ROW_HEIGHT);
+}
+
+void Stage::Draw() {
+
+    DrawGraph(0, 0, stage_1_3_image, TRUE);
+    
+    for (int r = 0; r < STAGE_ROWS; r++) {
+        for (int c = 0; c < STAGE_COLS; c++) {
+            int colorNum = field[r][c];
+            if (colorNum != 0) {
+                int drawX = GetX(r, c);
+                int drawY = GetY(r);
+
+                // ä»®ã®å††ã‚’æç”»
+                // è‰²ç•ªå·ã«å¿œã˜ã¦è‰²ã‚’åˆ‡ã‚Šæ›¿ãˆã‚‹
+                unsigned int color;
+                switch (colorNum) {
+                case 1: color = GetColor(255, 0, 0); break; // èµ¤
+                case 2: color = GetColor(0, 255, 0); break; // ç·‘
+                case 3: color = GetColor(0, 0, 255); break; // é’
+                case 4: color = GetColor(255, 255, 0); break; // é»„
+                default: color = GetColor(255, 255, 255); break;
+                }
+                DrawCircle(drawX, drawY, B_RADIUS-1, color, TRUE);
+            }
+        }
+    }
+    // ã‚­ãƒ£ãƒãƒ³ã‚’æç”»
+    cannon.Draw();
+
+    if (!shotBubble.isActive) {
+        unsigned int cCode;
+        switch (cannon.currentColor) {
+        case 1: cCode = GetColor(255, 0, 0);   break;
+        case 2: cCode = GetColor(0, 255, 0);   break; // ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã®ç·‘ã¨åˆã‚ã›ã‚‹
+        case 3: cCode = GetColor(0, 0, 255);   break;
+        case 4: cCode = GetColor(255, 255, 0); break;
+        default: cCode = GetColor(255, 255, 255); break;
+        }
+        DrawCircle((int)cannon.x, (int)cannon.y, B_RADIUS - 1, cCode, TRUE);
+    }
+    // é£›ã‚“ã§ã„ã‚‹ãƒãƒ–ãƒ«ã‚’æç”»
+    shotBubble.Draw();
+}
+
+// Procedural wrappers
+void StageInit() 
 {
-    switch (id) {
-    case 1: return GetColor(220, 60, 60);   // Ô
-    case 2: return GetColor(60, 120, 220);  // Â
-    case 3: return GetColor(80, 200, 80);   // —Î
-    case 4: return GetColor(220, 200, 60);  // ‰©
-    default: return GetColor(150, 150, 150); // ƒOƒŒ[
-    }
+    stage.Init(); 
 }
 
-// w’èƒZƒ‹‚©‚ç“¯F‚Ì˜AŒ‹—Ìˆæ‚ğW‚ß‚ÄA3‚ÂˆÈã‚È‚çÁ‹‚·‚é
-static void RemoveConnectedSameColor(int startY, int startX)
+void StageUpdate()
+{ 
+	stage.HandleInput();
+	stage.Update();
+}
+
+void StageRender() 
 {
-    int color = Map[startY][startX];
-    if (color == 0) return;
-
-    bool visited[GRID_H][GRID_W] = { false };
-    std::vector<std::pair<int,int>> stack;
-    std::vector<std::pair<int,int>> group;
-
-    stack.emplace_back(startY, startX);
-    visited[startY][startX] = true;
-
-    while (!stack.empty()) {
-        auto p = stack.back(); stack.pop_back();
-        int y = p.first;
-        int x = p.second;
-        group.emplace_back(y, x);
-
-        // 6•ûŒü‚Ì—×ÚƒZƒ‹‚ğƒ`ƒFƒbƒNiŠï”s‚ª‰E‚ÉƒIƒtƒZƒbƒgj
-        const int dx_lr[2] = {-1, 1};
-        for (int i = 0; i < 2; ++i) {
-            int nx = x + dx_lr[i];
-            int ny = y;
-            if (nx >= 0 && nx < GRID_W && !visited[ny][nx] && Map[ny][nx] == color) {
-                visited[ny][nx] = true;
-                stack.emplace_back(ny, nx);
-            }
-        }
-
-        // ã‰ºÎ‚ßis‚É‚æ‚Á‚Ä¶‰E‚ª•Ï‚í‚éj
-        if (y - 1 >= 0) {
-            if (y % 2 == 0) {
-                // even row
-                int nx1 = x - 1; int nx2 = x;
-                int ny = y - 1;
-                if (nx1 >= 0 && !visited[ny][nx1] && Map[ny][nx1] == color) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] == color) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-            }
-            else {
-                // odd row
-                int nx1 = x; int nx2 = x + 1;
-                int ny = y - 1;
-                if (nx1 >= 0 && nx1 < GRID_W && !visited[ny][nx1] && Map[ny][nx1] == color) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] == color) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-            }
-        }
-        if (y + 1 < GRID_H) {
-            if (y % 2 == 0) {
-                // even row
-                int nx1 = x - 1; int nx2 = x;
-                int ny = y + 1;
-                if (nx1 >= 0 && !visited[ny][nx1] && Map[ny][nx1] == color) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] == color) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-            }
-            else {
-                // odd row
-                int nx1 = x; int nx2 = x + 1;
-                int ny = y + 1;
-                if (nx1 >= 0 && nx1 < GRID_W && !visited[ny][nx1] && Map[ny][nx1] == color) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] == color) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-            }
-        }
-    }
-
-    // 3‚ÂˆÈã‚È‚çÁ‹
-    if (group.size() >= 3) {
-        for (auto &q : group) {
-            Map[q.first][q.second] = 0;
-        }
-    }
+    stage.Draw(); 
 }
 
-// “VˆäiÅãsj‚Æ‚Â‚È‚ª‚Á‚Ä‚¢‚È‚¢ƒoƒuƒ‹‚ğ—‚Æ‚·iÁ‹‚·‚éj
-static void RemoveFloatingBubbles()
+void StageExit() 
 {
-    bool visited[GRID_H][GRID_W] = { false };
-    std::vector<std::pair<int,int>> stack;
 
-    // Åãs‚©‚ç”ñƒ[ƒƒZƒ‹‚ğn“_‚É‚µ‚Ä“’B‰Â”\‚Èƒoƒuƒ‹‚ğƒ}[ƒN
-    for (int x = 0; x < GRID_W; ++x) {
-        if (Map[0][x] != 0 && !visited[0][x]) {
-            visited[0][x] = true;
-            stack.emplace_back(0, x);
-
-            while (!stack.empty()) {
-                auto p = stack.back(); stack.pop_back();
-                int y = p.first; int x2 = p.second;
-
-                // ¶‰E
-                const int dx_lr[2] = {-1, 1};
-                for (int i = 0; i < 2; ++i) {
-                    int nx = x2 + dx_lr[i];
-                    int ny = y;
-                    if (nx >= 0 && nx < GRID_W && !visited[ny][nx] && Map[ny][nx] != 0) {
-                        visited[ny][nx] = true;
-                        stack.emplace_back(ny, nx);
-                    }
-                }
-
-                // ã‰º‚Ì—×Úis‚É‚æ‚Á‚Ä¶‰E‚ª•Ï‚í‚éj
-                if (y - 1 >= 0) {
-                    int ny = y - 1;
-                    if (y % 2 == 0) {
-                        int nx1 = x2 - 1; int nx2 = x2;
-                        if (nx1 >= 0 && !visited[ny][nx1] && Map[ny][nx1] != 0) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                        if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] != 0) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-                    } else {
-                        int nx1 = x2; int nx2 = x2 + 1;
-                        if (nx1 >= 0 && nx1 < GRID_W && !visited[ny][nx1] && Map[ny][nx1] != 0) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                        if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] != 0) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-                    }
-                }
-                if (y + 1 < GRID_H) {
-                    int ny = y + 1;
-                    if (y % 2 == 0) {
-                        int nx1 = x2 - 1; int nx2 = x2;
-                        if (nx1 >= 0 && !visited[ny][nx1] && Map[ny][nx1] != 0) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                        if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] != 0) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-                    } else {
-                        int nx1 = x2; int nx2 = x2 + 1;
-                        if (nx1 >= 0 && nx1 < GRID_W && !visited[ny][nx1] && Map[ny][nx1] != 0) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                        if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] != 0) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-                    }
-                }
-            }
-        }
-    }
-
-    // “’B•s‰Â‚Ìƒoƒuƒ‹‚Í—‚Æ‚·iÁ‹j
-    for (int y = 0; y < GRID_H; ++y) {
-        for (int x = 0; x < GRID_W; ++x) {
-            if (Map[y][x] != 0 && !visited[y][x]) {
-                Map[y][x] = 0;
-            }
-        }
-    }
 }
 
-//---------------------------------------------------------------------------------
-//	‰Šú‰»
-//---------------------------------------------------------------------------------
-void StageInit() {
-    // ”Õ–Ê‚Ì‰Šú‰»i”z—ñ‚Å’è‹`‚µ‚½ƒXƒe[ƒW‚ğ“Ç‚İ‚Şj
-    for (int y = 0; y < GRID_H; y++) {
-        for (int x = 0; x < GRID_W; x++) {
-            Map[y][x] = CurrentStage[y][x];
-        }
-    }
-    // ƒoƒuƒ‹‰Šú‰»iƒtƒB[ƒ‹ƒhƒTƒCƒYEƒoƒuƒ‹ƒTƒCƒYEŠî€ˆÊ’u“™j
-    Bubble_Init();
 
-    const int targetFieldW = 255;
-    const int targetFieldH = 320;
-    fieldWidth = targetFieldW;
-    fieldHeight = targetFieldH;
 
-    // ƒtƒB[ƒ‹ƒh‚ğ‰æ–Ê’†‰›‚É”z’u
-    fieldOffsetX = (SCREEN_W - fieldWidth) / 2;
-    fieldTop = (SCREEN_H - fieldHeight) / 2;
-
-    // ƒoƒuƒ‹‚Í•—Dæ‚Å‡‚í‚¹‚éic‚Í‹]µ‚É‚µ‚Ä‚à‚æ‚¢j
-    int sizeByWidth = fieldWidth / GRID_W;   // 255/8 = 31
-    int sizeByHeight = fieldHeight / GRID_H; // 320/12 = 26
-    // •‚É‡‚í‚¹‚Ä‘å‚«‚­‚·‚éi”ñ³•ûƒZƒ‹‚âc‚Í‚İo‚µ‚ğ‹–—ej
-    bubbleSize = sizeByWidth; // prioritize width
-    if (bubbleSize < 8) bubbleSize = 8;
-    bubbleRadius = bubbleSize / 2;
-
-    // ƒtƒB[ƒ‹ƒh“à‚ÅÀÛ‚Éƒoƒuƒ‹‚ª•`‚©‚ê‚é‹éŒ`i•—Dæ‚Å‘å‚«‚­‚È‚é‚½‚ßc‚ª‚Í‚İo‚·‰Â”\«‚ ‚èj
-    int usedWidth = bubbleSize * GRID_W;   
-    int usedHeight = bubbleSize * GRID_H;  
-    bubbleBaseX = fieldOffsetX + (fieldWidth - usedWidth) / 2;
-    bubbleBaseY = fieldTop + (fieldHeight - usedHeight) / 2;
-
-    // ”­Ë‘äˆÊ’u
-    launcherX = SCREEN_W / 2;
-    int proposedLauncherY = bubbleBaseY + usedHeight + 16;
-    if (proposedLauncherY > SCREEN_H - 16) proposedLauncherY = SCREEN_H - 16;
-    launcherY = proposedLauncherY;
-	shot_bubble.active = false;
-	shot_bubble.color = rand() % 4 + 1;
-	shot_bubble.angle = -3.14159265f / 2.0f; // ^ãŒü‚«
-}
-
-//---------------------------------------------------------------------------------
-//	XVˆ—
-//---------------------------------------------------------------------------------
-void StageUpdate() {
-    // XV‚Éƒoƒuƒ‹ƒAƒjƒ[ƒVƒ‡ƒ“‚ği‚ß‚é
-    Bubble_UpdateAnimations();
-	if (!shot_bubble.active) {
-		// 1. Šp“x’²®
-		if (CheckHitKey(KEY_INPUT_LEFT))  shot_bubble.angle -= ROT_SPEED;
-		if (CheckHitKey(KEY_INPUT_RIGHT)) shot_bubble.angle += ROT_SPEED;
-
-		// Šp“x§ŒÀi^‰¡‚æ‚è‰º‚És‚©‚È‚¢‚æ‚¤‚Éj
-		if (shot_bubble.angle < -3.14159265f + 0.2f) shot_bubble.angle = -3.14159265f + 0.2f;
-		if (shot_bubble.angle > -0.2f)               shot_bubble.angle = -0.2f;
-
-		shot_bubble.x = (float)launcherX;
-		shot_bubble.y = (float)launcherY;
-
-		// 2. ”­Ë
-		if (PushHitKey(KEY_INPUT_SPACE)) {
-			shot_bubble.active = true;
-		}
-	}
-	else {
-		// 3. ˆÚ“®
-		shot_bubble.x += GetLength_RotCos(shot_bubble.angle) * 8.0f;
-		shot_bubble.y += GetLength_RotSin(shot_bubble.angle) * 8.0f;
-
-        // 4. •Ç”½ËiÀÛ‚Éƒoƒuƒ‹‚ª•`‚©‚ê‚é—Ìˆæ‚Å‚Ì”½Ëj
-        int usedWidth = bubbleSize * GRID_W;
-        if (shot_bubble.x < bubbleBaseX + bubbleRadius ||
-            shot_bubble.x > bubbleBaseX + usedWidth - bubbleRadius) {
-			float vx = GetLength_RotCos(shot_bubble.angle);
-			float vy = GetLength_RotSin(shot_bubble.angle);
-			shot_bubble.angle = GetRadian_Atan2(vy, -vx);
-		}
-
-		// 5. “–‚½‚è”»’èi”Õ–Ê‚Ìƒoƒuƒ‹‚Æ‚ÌÕ“Ëj
-		bool hit = false;
-		for (int y = 0; y < GRID_H; y++) {
-			for (int x = 0; x < GRID_W; x++) {
-                if (Map[y][x] > 0) {
-            float offsetX = (y % 2 == 1) ? (float)bubbleRadius : 0.0f;
-                float targetX = bubbleBaseX + x * bubbleSize + bubbleRadius + offsetX;
-                float targetY = bubbleBaseY + y * bubbleSize + bubbleRadius;
-
-					// ‹——£‚Ì2æ‚Å”»’èiƒ‹[ƒgŒvZ‚ğÈ‚¢‚Ä‚‘¬‰»j
-					float dx = shot_bubble.x - targetX;
-					float dy = shot_bubble.y - targetY;
-				if ((dx * dx + dy * dy) < (bubbleSize * bubbleSize * 0.9f)) {
-						hit = true;
-						break;
-					}
-				}
-			}
-			if (hit) break;
-		}
-
-        // “Vˆä‚É“–‚½‚Á‚½ê‡‚àƒqƒbƒgˆµ‚¢
-        if (shot_bubble.y < bubbleBaseY + bubbleRadius) hit = true;
-
-		// 6. Õ“Ë‚ÌŒÅ’èˆ—
-		if (hit) {
-			// Œ»İ‚ÌÀ•W‚©‚çMap‚Ì“Yš(x, y)‚ğ‹tZ
-            int mapY = (int)((shot_bubble.y - bubbleBaseY) / bubbleSize);
-			if (mapY < 0) mapY = 0;
-			if (mapY >= GRID_H) mapY = GRID_H - 1;
-
-            float offsetX = (mapY % 2 == 1) ? (float)bubbleRadius : 0.0f;
-            int mapX = (int)((shot_bubble.x - bubbleBaseX - offsetX) / bubbleSize);
-			if (mapX < 0) mapX = 0;
-			if (mapX >= GRID_W) mapX = GRID_W - 1;
-
-			// Map‚ÉF‚ğ‘‚«‚Ş
-			Map[mapY][mapX] = shot_bubble.color;
-			// “¯F‚ª3‚ÂˆÈã‚Â‚È‚ª‚Á‚Ä‚¢‚½‚çÁ‚·
-			RemoveConnectedSameColor(mapY, mapX);
-			// ˜AŒ‹íœ‚ÌŒãA“Vˆä‚ÆŒq‚ª‚Á‚Ä‚¢‚È‚¢ƒoƒuƒ‹‚ğ—‚Æ‚·
-			RemoveFloatingBubbles();
-
-			// Ÿ‚Ì‹Ê‚ğ€”õ
-			shot_bubble.active = false;
-			shot_bubble.color = rand() % 4 + 1;
-		}
-	}
-}
-
-//---------------------------------------------------------------------------------
-//	•`‰æˆ—
-//---------------------------------------------------------------------------------
-void StageRender() {
-	DrawGraph(0, 0, stage_1_3_image, TRUE);
-
-    // ”Õ–Ê•`‰æ
-    for (int y = 0; y < GRID_H; y++) {
-        for (int x = 0; x < GRID_W; x++) {
-                if (Map[y][x] > 0) {
-                float offsetX = (y % 2 == 1) ? (float)bubbleRadius : 0.0f;
-                int drawX = (int)(bubbleBaseX + x * bubbleSize + bubbleRadius + offsetX);
-                int drawY = (int)(bubbleBaseY + y * bubbleSize + bubbleRadius);
-
-                int frameImg = Bubble_GetFrameImage(Map[y][x]);
-                if (frameImg > 0) {
-                    DrawGraph(drawX - bubbleRadius, drawY - bubbleRadius, frameImg, TRUE);
-                }
-                else {
-                    int sheet, sx, sy, sw, sh;
-                    if (Bubble_GetFrameSprite(Map[y][x], sheet, sx, sy, sw, sh)) {
-                        DrawRectGraph(drawX - bubbleRadius, drawY - bubbleRadius, sx, sy, sw, sh, sheet, TRUE);
-                    }
-                    else {
-                        DrawCircle(drawX, drawY, bubbleRadius, GetBubbleColor(Map[y][x]), TRUE);
-                    }
-                }
-            }
-        }
-    }
-
-<<<<<<< HEAD
-=======
-	
->>>>>>> cdb406a39dd891b4679e0309e936141065764b3f
-
-    // –C‘ä
-    DrawRotaGraph(launcherX, launcherY, 1.0, shot_bubble.angle + 1.5708f, cannon_image, TRUE);
-
-    // ”­Ëƒoƒuƒ‹
-    {
-        int frameImg = Bubble_GetFrameImage(shot_bubble.color);
-        if (frameImg > 0) {
-            DrawGraph((int)shot_bubble.x - bubbleRadius, (int)shot_bubble.y - bubbleRadius, frameImg, TRUE);
-        } else {
-            int sheet, sx, sy, sw, sh;
-            if (Bubble_GetFrameSprite(shot_bubble.color, sheet, sx, sy, sw, sh)) {
-                DrawRectGraph((int)shot_bubble.x - bubbleRadius, (int)shot_bubble.y - bubbleRadius, sx, sy, sw, sh, sheet, TRUE);
-            } else {
-                DrawCircle((int)shot_bubble.x, (int)shot_bubble.y, bubbleRadius, GetBubbleColor(shot_bubble.color), TRUE);
-            }
-        }
-    }
-
-	DrawString(20, 20, "¶‰EƒL[FŠp“x’²® / SPACEF”­Ë", GetColor(255, 255, 255));
-}
-
-void StageExit() {}

@@ -21,8 +21,8 @@ void TitleInit()
 //---------------------------------------------------------------------------------
 void TitleUpdate()
 {
-	//	スペースキーを押したら
-	if( PushHitKey( KEY_INPUT_SPACE ) ){
+	//	エンターを押したら
+	if( PushHitKey( KEY_INPUT_RETURN ) ){
 		//	次に行きたいシーン番号を設定しています
 		scene_next = SCENE_STAGE;
 	}
