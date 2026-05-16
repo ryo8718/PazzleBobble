@@ -13,13 +13,13 @@
 
 #include <DxLib.h>
 
-bool PushHitKey( int key );
-bool CheckMouseInput( int button = MOUSE_INPUT_LEFT|MOUSE_INPUT_RIGHT );
-bool PushMouseInput( int button = MOUSE_INPUT_LEFT|MOUSE_INPUT_RIGHT );
+bool PushHitKey(int key);
+bool CheckMouseInput(int button = MOUSE_INPUT_LEFT | MOUSE_INPUT_RIGHT);
+bool PushMouseInput(int button = MOUSE_INPUT_LEFT | MOUSE_INPUT_RIGHT);
 int GetMouseX();
 int GetMouseY();
-float TO_RADIAN( float degree );
-float TO_DEGREE( float radian );
-float GetLength_RotSotte( float rot );
-float GetLength_RotMukai( float rot );
-float GetRadian_LengthMukaiSotte( float mukai, float sotte );
+float TO_RADIAN(float degree);
+float TO_DEGREE(float radian);
+float GetLength_Rotcos(float rot);
+float GetLength_Rotsin(float rot);
+float GetRadian_Lengthatan2f(float mukai, float sotte);

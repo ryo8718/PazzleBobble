@@ -21,8 +21,8 @@ void TitleInit()
 //---------------------------------------------------------------------------------
 void TitleUpdate()
 {
-	//	スペースキーを押したら
-	if( PushHitKey( KEY_INPUT_SPACE ) ){
+	//	エンターを押したら
+	if (PushHitKey(KEY_INPUT_RETURN)) {
 		//	次に行きたいシーン番号を設定しています
 		scene_next = SCENE_STAGE;
 	}
@@ -33,10 +33,10 @@ void TitleUpdate()
 void TitleRender()
 {
 	//	タイトル背景の描画
-	DrawGraph( 0, 0, title_image, TRUE );
+	DrawGraph(0, 0, title_image, TRUE);
 
-	DrawString( 20, 20, "【タイトル画面】", GetColor( 255, 255, 255 ) );
-	DrawString( 20, 40, "スペースキーでステージへ", GetColor( 255, 255, 255 ) );
+	DrawString(20, 20, "【タイトル画面】", GetColor(255, 255, 255));
+	DrawString(20, 40, "スペースキーでステージへ", GetColor(255, 255, 255));
 }
 //---------------------------------------------------------------------------------
 //	終了処理

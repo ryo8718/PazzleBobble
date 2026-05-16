@@ -8,13 +8,17 @@
 int scene_num;
 int scene_next;
 
-// --- 画像用変数の「実体」定義 ---
+// --- 画像用変数 ---
 int title_image;
 int stage_1_3_image;
 int result_image;
 int button_image;
-int cannon_image;      // ★追加：砲台
-int bubble_images[100];    // ★追加：玉（配列96個分）
+int cannon_image;
+// バブル画像：色 x 状態 x フレーム
+int bubble_images[BUBBLE_COLOR_COUNT][BUBBLE_STATE_COUNT][BUBBLE_MAX_FRAMES];
+// 各色・状態ごとの実際のフレーム数
+int bubble_frame_counts[BUBBLE_COLOR_COUNT][BUBBLE_STATE_COUNT];
+int ceiling_image;
 
 //---------------------------------------------------------------------------------
 //	初期化処理
@@ -25,16 +29,28 @@ void GameInit()
 	scene_next = SCENE_TITLE;
 
 	// --- 画像の読み込み ---
-	// ※注意：ファイルがないと -1 が返りますが、プログラムは動きます
 	stage_1_3_image = LoadGraph("data/stage_1_3.png");
 	cannon_image = LoadGraph("data/cannon.png");
-	bubble_images[1] = LoadGraph("data/bubble_red.png");
-	bubble_images[2] = LoadGraph("data/bubble_green.png");
-	bubble_images[3] = LoadGraph("data/bubble_blue.png");
-	bubble_images[4] = LoadGraph("data/bubble_yellow.png");
-	
-	// タイトル画面などで使う画像があればここに追加
-	// title_image = LoadGraph("data/title.png");
+	// LoadDivGraph(ファイル名, 枚数, 横の分割数, 縦の分割数, 1枚の幅, 1枚の高さ, 保存先配列)
+	//LoadDivGraph("data/cannon_anim.png", 8, 8, 1, 64, 64, cannon_images);
+    // バッファを初期化
+    for (int i = 0; i < BUBBLE_COLOR_COUNT; i++) {
+        for (int j = 0; j < BUBBLE_STATE_COUNT; j++) {
+            bubble_frame_counts[i][j] = 0;
+            for (int k = 0; k < BUBBLE_MAX_FRAMES; k++) bubble_images[i][j][k] = 0;
+        }
+    }
+
+    // 赤 (color = 1) のアニメーションを読み込む
+    // 待機アニメーション（2フレーム）を bubble_images[1][BUBBLE_WAIT][0..1] に読み込む
+    LoadDivGraph("data/red_wait.png", 2, 2, 1, 32, 16, &bubble_images[1][BUBBLE_WAIT][0]);
+    bubble_frame_counts[1][BUBBLE_WAIT] = 2;
+    // 発射状態は1枚画像なので LoadGraph で読み込み（アニメーションしない）
+    bubble_images[1][BUBBLE_SHOT][0] = LoadGraph("data/red_shot.png");
+    bubble_frame_counts[1][BUBBLE_SHOT] = 1;
+
+
+	title_image = LoadGraph("data/title.png");
 
 	TitleInit();
 }
@@ -47,16 +63,16 @@ void GameUpdate()
 	if (scene_num != scene_next) {
 		scene_num = scene_next;
 		switch (scene_num) {
-		case SCENE_TITLE:  
-			TitleInit(); 
+		case SCENE_TITLE:
+			TitleInit();
 			break;
 
 		case SCENE_STAGE:
-			StageInit();  
+			StageInit();
 			break;
 
 		case SCENE_RESULT:
-			ResultInit(); 
+			ResultInit();
 			break;
 		}
 	}

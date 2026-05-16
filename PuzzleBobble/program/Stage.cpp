@@ -1,395 +1,361 @@
-#include "Main.h"
-#include "Game.h"
 #include "Stage.h"
-#include <math.h>
+#include <cmath>
 #include <vector>
 
-// --- 定数 ---
-#define ROT_SPEED      0.03f 
+int ceilingOffset = 0;
+int shotCount = 0;
 
-#include "bubble.h"
+static Stage stage;
 
-// バブル関連は bubble.h / bubble.cpp に移動しています
+Stage::Stage() {
+    Init();
+}
 
-// --- 外部変数の参照 ---
-extern int stage_1_3_image;
-extern int bubble_images[100];
-extern int cannon_image;
+void Stage::LoadStage() {
+    for (int r = 0; r < STAGE_ROWS; r++) {
+        for (int c = 0; c < STAGE_COLS; c++) {
+            // 設計図(STAGE_DATA_1)から実際のフィールド(field)へコピー
+            field[r][c] = STAGE_DATA_1[r][c];
+        }
+    }
+}
 
-// --- ステージ内変数 ---
-int Map[GRID_H][GRID_W];
+void Stage::Init() {
+    LoadStage();
+    cannon.Init();
+    cannonAngle = CANNON_DEFAULT_DEG;
+    cannonX = SCREEN_W / 2.0f;
+    cannonY = SCREEN_H - 40.0f;
 
-struct {
-	float x, y;
-	float angle;
-	bool  active;
-	int   color;
-} shot_bubble;
+    shotBubble.isActive = false;
 
-// --- ステージ定義 (ここに配列で配置を記述します) ---
-// 値: 0=空, 1..4=色番号
-static const int Stage1[GRID_H][GRID_W] = {
-    {1,2,3,4,1,2,3,4},
-    {2,1,2,1,2,1,2,1},
-    {3,0,3,0,3,0,3,0},
-    {4,0,0,0,4,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0}
-};
 
-// 現在読み込むステージを指定 (必要なら複数のステージを定義して切り替えられます)
-static const int (*CurrentStage)[GRID_W] = Stage1;
+}
 
-// 角度関連のヘルパー（Stage.cpp の先頭に追加）
-static inline float GetLength_RotCos(float rad) { return cosf(rad); }
-static inline float GetLength_RotSin(float rad) { return sinf(rad); }
-static inline float GetRadian_Atan2(float y, float x) { return atan2f(y, x); }
+void Stage::HandleInput() {
+    // 1. キャノンの旋回
+    if (CheckHitKey(KEY_INPUT_LEFT)) {
+        cannon.angle -= CANNON_ROTATE_SPEED;
+    }
+    if (CheckHitKey(KEY_INPUT_RIGHT)) {
+        cannon.angle += CANNON_ROTATE_SPEED;
+    }
 
-// 仮のバブル色マップ（画像未設定時に使う）
-static int GetBubbleColor(int id)
+    // 2. 角度制限（マクロ定数を使用）
+    if (cannonAngle < CANNON_MIN_DEG) cannon.angle = CANNON_MIN_DEG;
+    if (cannonAngle > CANNON_MAX_DEG) cannon.angle = CANNON_MAX_DEG;
+
+    // 3. 発射処理
+    if (CheckHitKey(KEY_INPUT_SPACE) && !shotBubble.isActive) {
+        float vx = cosf(TO_RADIAN(cannon.angle)) * 5.0f;
+        float vy = sinf(TO_RADIAN(cannon.angle)) * 5.0f;
+        shotBubble.Init(cannon.x, cannon.y, vx, vy, cannon.currentColor);
+        shotBubble.isActive = true;
+
+        cannon.currentColor = GetRand(MAX_COLOR_NUM - 1) + 1;
+    }
+}
+
+void Stage::Update() {
+    // バブルが飛んでいないときは何もしない
+    if (!shotBubble.isActive) return;
+
+    // 1. 移動
+    shotBubble.x += shotBubble.vx;
+    shotBubble.y += shotBubble.vy;
+
+    // 2. 左右の壁での反射
+    // 左端（OFFSET_X）
+    if (shotBubble.x < WALL_LEFT + B_RADIUS) {
+        shotBubble.x = (float)(WALL_LEFT + B_RADIUS);
+        shotBubble.vx *= -1.0f;
+    }
+
+    // 右端（OFFSET_X + 8列分の幅）
+    float rightLimit = (float)(OFFSET_X + (STAGE_COLS * B_DIAMETER));
+    if (shotBubble.x > WALL_RIGHT - B_RADIUS) {
+        // 1. 位置を壁のギリギリ内側に強制的に戻す
+        shotBubble.x = (float)(WALL_RIGHT - B_RADIUS);
+
+        // 2. 速度を反転
+        shotBubble.vx *= -1.0f;
+    }
+
+    // 3. 画面外（下）へ消えた場合のリセット（念のため）
+    if (shotBubble.y > SCREEN_H) {
+        shotBubble.isActive = false;
+    }
+    if (shotBubble.isActive) {
+        for (int r = 0; r < STAGE_ROWS; r++) {
+            for (int c = 0; c < STAGE_COLS; c++) {
+                // そこにバブルがある場合のみ判定
+                if (field[r][c] != 0) {
+                    float targetX = (float)GetX(r, c);
+                    float targetY = (float)GetY(r);
+
+                    float dx = shotBubble.x - targetX;
+                    float dy = shotBubble.y - targetY;
+                    float distSq = dx * dx + dy * dy; // 距離の2乗
+
+                    // 半径20なら、直径40。40の2乗である1600より小さければ接触
+                    if (distSq < (B_RADIUS * 2) * (B_RADIUS * 2)) {
+                        // 当たった！
+                        FixBubble(); // 固定処理へ
+                        return;
+                    }
+                }
+            }
+        }
+
+        // 天井に当たった判定
+        if (shotBubble.y <= OFFSET_Y) {
+            shotBubble.y = OFFSET_Y; // めり込み防止：天井の高さに固定
+            FixBubble();
+            return;
+        }
+    }
+}
+
+// 消去候補のリスト（std::vectorなどを使うと便利）
+std::vector<std::pair<int, int>> eraseList;
+bool checked[STAGE_ROWS][STAGE_COLS];
+
+void Stage::CheckConnect(int r, int c, int color) {
+    // 範囲外なら終了
+    if (r < 0 || r >= STAGE_ROWS || c < 0 || c >= STAGE_COLS) return;
+    // すでにチェック済み、または色が違えば終了
+    if (checked[r][c] || field[r][c] != color) return;
+
+    // チェック済みにする
+    checked[r][c] = true;
+    eraseList.push_back({ r, c }); // 消去候補に追加
+
+    // 隣り合う6方向に対して自分自身を呼び出す（再帰）
+    // 偶数行・奇数行で隣の位置が少し変わるので注意！
+    int dr[6] = { -1, -1, 0, 0, 1, 1 };
+    int dc[6];
+    if (r % 2 == 0) {
+        int temp[] = { -1, 0, -1, 1, -1, 0 }; // 偶数行の隣
+        for (int i = 0; i < 6; i++) dc[i] = temp[i];
+    }
+    else {
+        int temp[] = { 0, 1, -1, 1, 0, 1 };  // 奇数行の隣
+        for (int i = 0; i < 6; i++) dc[i] = temp[i];
+    }
+
+    for (int i = 0; i < 6; i++) {
+        CheckConnect(r + dr[i], c + dc[i], color);
+    }
+}
+
+void Stage::CheckSafe(int r, int c) {
+    if (r < 0 || r >= STAGE_ROWS || c < 0 || c >= STAGE_COLS) return;
+    if (isSafe[r][c] || field[r][c] == 0) return;
+
+    // 天井から繋がっている
+    isSafe[r][c] = true;
+
+    int dr[6] = { -1, -1, 0, 0, 1, 1 };
+    int dc[6];
+    if (r % 2 == 0) {
+        int temp[] = { -1, 0, -1, 1, -1, 0 };
+        for (int i = 0; i < 6; i++) dc[i] = temp[i];
+    }
+    else {
+        int temp[] = { 0, 1, -1, 1, 0, 1 };
+        for (int i = 0; i < 6; i++) dc[i] = temp[i];
+    }
+
+    for (int i = 0; i < 6; i++) {
+        CheckSafe(r + dr[i], c + dc[i]);
+    }
+}
+
+
+
+void Stage::DropFloatingBubbles() {
+    // 全てをfalse
+    for (int r = 0; r < STAGE_ROWS; r++)
+        for (int c = 0; c < STAGE_COLS; c++) isSafe[r][c] = false;
+
+
+    for (int c = 0; c < STAGE_COLS; c++) {
+        if (field[0][c] != 0) {
+            CheckSafe(0, c);
+        }
+    }
+
+    // 消去（または落下させる）
+    for (int r = 0; r < STAGE_ROWS; r++) {
+        for (int c = 0; c < STAGE_COLS; c++) {
+            if (field[r][c] != 0 && !isSafe[r][c]) {
+                field[r][c] = 0;
+            }
+        }
+    }
+}
+
+void Stage::ScrollDown() {
+    ceilingOffset += SCROLL_STEP;
+
+    // もし天井の「棒」や「壁」の画像があるなら、その描画位置もこれに合わせる
+
+}
+
+void Stage::FixBubble() {
+    // 1. 少し戻す（これはOK）
+    shotBubble.x -= shotBubble.vx;
+    shotBubble.y -= shotBubble.vy;
+
+    // 2. 行(r)を計算
+    int r = (int)((shotBubble.y - OFFSET_Y + ceilingOffset) / ROW_HEIGHT + 0.5f);
+
+    if (shotBubble.y <= OFFSET_Y + ceilingOffset + B_RADIUS) {
+        r = 0;
+    }
+
+    // 天井より上に行き過ぎた場合は0行目にする
+    if (r < 0) r = 0;
+    // 底を突き抜けた場合は固定せずに消去
+    if (r >= STAGE_ROWS) {
+        shotBubble.isActive = false;
+        return;
+    }
+
+    // 3. 列(c)を計算
+    float currentOffsetX = (r % 2 == 0) ? OFFSET_X : OFFSET_X + B_RADIUS;
+    int c = (int)((shotBubble.x - currentOffsetX) / (B_RADIUS * 2) + 0.4f);
+
+    // ★重要：列(c)の範囲外チェックと補正
+    if (c < 0) c = 0;
+    if (c >= STAGE_COLS) c = STAGE_COLS - 1;
+
+    // 即座にフィールドに固定する（アニメーション無し）
+    field[r][c] = shotBubble.color;
+
+    // 消去と落下判定
+    ProcessErase(r, c);
+    DropFloatingBubbles();
+
+    // 弾を非アクティブにする
+    shotBubble.isActive = false;
+
+    shotCount++; // 発射回数をカウント
+    if (shotCount >= SHOT_LIMIT) {
+        ScrollDown();  // 天井を下げる関数を呼ぶ
+        shotCount = 0; // カウントリセット
+    }
+}
+
+void Stage::ProcessErase(int startR, int startC) {
+    // 1. 下準備
+    eraseList.clear();
+    for (int i = 0; i < STAGE_ROWS; i++)
+        for (int j = 0; j < STAGE_COLS; j++) checked[i][j] = false;
+
+    // 2. つながりを調べる
+    CheckConnect(startR, startC, field[startR][startC]);
+
+    // 3. 3つ以上なら field を 0（空）にする
+    if (eraseList.size() >= 3) {
+        for (auto p : eraseList) {
+            field[p.first][p.second] = 0;
+            // ここで「割れるエフェクト」を出すフラグを立てると最高！
+        }
+    }
+}
+
+bool isSafe[STAGE_ROWS][STAGE_COLS];
+
+
+
+
+int Stage::GetX(int r, int c) {
+    int x = OFFSET_X + (c * B_RADIUS * 2);
+    if (r % 2 != 0) { // 奇数行なら半分ずらす
+        x += B_RADIUS;
+    }
+    return x;
+}
+
+int Stage::GetY(int r) {
+    return OFFSET_Y + ceilingOffset + (r * ROW_HEIGHT);
+}
+
+void Stage::Draw() {
+
+    DrawGraph(0, 0, stage_1_3_image, TRUE);
+
+    for (int r = 0; r < STAGE_ROWS; r++) {
+        for (int c = 0; c < STAGE_COLS; c++) {
+            int colorNum = field[r][c];
+            if (colorNum != 0) {
+                int drawX = GetX(r, c);
+                int drawY = GetY(r);
+
+                // 仮の円を描画
+                // 色番号に応じて色を切り替える
+                unsigned int color;
+                switch (colorNum) {
+                case 1: color = GetColor(255, 0, 0); break; // 赤
+                case 2: color = GetColor(0, 255, 0); break; // 緑
+                case 3: color = GetColor(0, 0, 255); break; // 青
+                case 4: color = GetColor(255, 255, 0); break; // 黄
+                default: color = GetColor(255, 255, 255); break;
+                }
+                DrawCircle(drawX, drawY, B_RADIUS - 1, color, TRUE);
+            }
+        }
+    }
+
+    int ceilingImgY = (OFFSET_Y + ceilingOffset) - CEILING_IMAGE_HEIGHT;
+    //DrawGraph(CEILING_OFFSET_X, ceilingImgY, ceiling_image, TRUE);
+
+    // キャノンを描画
+    cannon.Draw();
+
+    if (!shotBubble.isActive) {
+        unsigned int cCode;
+        switch (cannon.currentColor) {
+        case 1: cCode = GetColor(255, 0, 0);   break;
+        case 2: cCode = GetColor(0, 255, 0);   break; // フィールドの緑と合わせる
+        case 3: cCode = GetColor(0, 0, 255);   break;
+        case 4: cCode = GetColor(255, 255, 0); break;
+        default: cCode = GetColor(255, 255, 255); break;
+        }
+        DrawCircle((int)cannon.x, (int)cannon.y, B_RADIUS - 1, cCode, TRUE);
+    }
+    // 飛んでいるバブルを描画
+    shotBubble.Draw();
+
+    // マウスの座標を格納する変数
+    int mx, my;
+    GetMousePoint(&mx, &my);
+
+    // 画面左上に現在のマウス座標を表示
+    DrawFormatString(0, 0, GetColor(255, 255, 255), "X=%d Y=%d", mx, my);
+}
+
+// Procedural wrappers
+void StageInit()
 {
-    switch (id) {
-    case 1: return GetColor(220, 60, 60);   // 赤
-    case 2: return GetColor(60, 120, 220);  // 青
-    case 3: return GetColor(80, 200, 80);   // 緑
-    case 4: return GetColor(220, 200, 60);  // 黄
-    default: return GetColor(150, 150, 150); // グレー
-    }
+    stage.Init();
 }
 
-// 指定セルから同色の連結領域を集めて、3つ以上なら消去する
-static void RemoveConnectedSameColor(int startY, int startX)
+void StageUpdate()
 {
-    int color = Map[startY][startX];
-    if (color == 0) return;
-
-    bool visited[GRID_H][GRID_W] = { false };
-    std::vector<std::pair<int,int>> stack;
-    std::vector<std::pair<int,int>> group;
-
-    stack.emplace_back(startY, startX);
-    visited[startY][startX] = true;
-
-    while (!stack.empty()) {
-        auto p = stack.back(); stack.pop_back();
-        int y = p.first;
-        int x = p.second;
-        group.emplace_back(y, x);
-
-        // 6方向の隣接セルをチェック（奇数行が右にオフセット）
-        const int dx_lr[2] = {-1, 1};
-        for (int i = 0; i < 2; ++i) {
-            int nx = x + dx_lr[i];
-            int ny = y;
-            if (nx >= 0 && nx < GRID_W && !visited[ny][nx] && Map[ny][nx] == color) {
-                visited[ny][nx] = true;
-                stack.emplace_back(ny, nx);
-            }
-        }
-
-        // 上下斜め（行によって左右が変わる）
-        if (y - 1 >= 0) {
-            if (y % 2 == 0) {
-                // even row
-                int nx1 = x - 1; int nx2 = x;
-                int ny = y - 1;
-                if (nx1 >= 0 && !visited[ny][nx1] && Map[ny][nx1] == color) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] == color) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-            }
-            else {
-                // odd row
-                int nx1 = x; int nx2 = x + 1;
-                int ny = y - 1;
-                if (nx1 >= 0 && nx1 < GRID_W && !visited[ny][nx1] && Map[ny][nx1] == color) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] == color) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-            }
-        }
-        if (y + 1 < GRID_H) {
-            if (y % 2 == 0) {
-                // even row
-                int nx1 = x - 1; int nx2 = x;
-                int ny = y + 1;
-                if (nx1 >= 0 && !visited[ny][nx1] && Map[ny][nx1] == color) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] == color) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-            }
-            else {
-                // odd row
-                int nx1 = x; int nx2 = x + 1;
-                int ny = y + 1;
-                if (nx1 >= 0 && nx1 < GRID_W && !visited[ny][nx1] && Map[ny][nx1] == color) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] == color) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-            }
-        }
-    }
-
-    // 3つ以上なら消去
-    if (group.size() >= 3) {
-        for (auto &q : group) {
-            Map[q.first][q.second] = 0;
-        }
-    }
+    stage.HandleInput();
+    stage.Update();
 }
 
-// 天井（最上行）とつながっていないバブルを落とす（消去する）
-static void RemoveFloatingBubbles()
+void StageRender()
 {
-    bool visited[GRID_H][GRID_W] = { false };
-    std::vector<std::pair<int,int>> stack;
-
-    // 最上行から非ゼロセルを始点にして到達可能なバブルをマーク
-    for (int x = 0; x < GRID_W; ++x) {
-        if (Map[0][x] != 0 && !visited[0][x]) {
-            visited[0][x] = true;
-            stack.emplace_back(0, x);
-
-            while (!stack.empty()) {
-                auto p = stack.back(); stack.pop_back();
-                int y = p.first; int x2 = p.second;
-
-                // 左右
-                const int dx_lr[2] = {-1, 1};
-                for (int i = 0; i < 2; ++i) {
-                    int nx = x2 + dx_lr[i];
-                    int ny = y;
-                    if (nx >= 0 && nx < GRID_W && !visited[ny][nx] && Map[ny][nx] != 0) {
-                        visited[ny][nx] = true;
-                        stack.emplace_back(ny, nx);
-                    }
-                }
-
-                // 上下の隣接（行によって左右が変わる）
-                if (y - 1 >= 0) {
-                    int ny = y - 1;
-                    if (y % 2 == 0) {
-                        int nx1 = x2 - 1; int nx2 = x2;
-                        if (nx1 >= 0 && !visited[ny][nx1] && Map[ny][nx1] != 0) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                        if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] != 0) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-                    } else {
-                        int nx1 = x2; int nx2 = x2 + 1;
-                        if (nx1 >= 0 && nx1 < GRID_W && !visited[ny][nx1] && Map[ny][nx1] != 0) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                        if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] != 0) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-                    }
-                }
-                if (y + 1 < GRID_H) {
-                    int ny = y + 1;
-                    if (y % 2 == 0) {
-                        int nx1 = x2 - 1; int nx2 = x2;
-                        if (nx1 >= 0 && !visited[ny][nx1] && Map[ny][nx1] != 0) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                        if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] != 0) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-                    } else {
-                        int nx1 = x2; int nx2 = x2 + 1;
-                        if (nx1 >= 0 && nx1 < GRID_W && !visited[ny][nx1] && Map[ny][nx1] != 0) { visited[ny][nx1] = true; stack.emplace_back(ny, nx1); }
-                        if (nx2 >= 0 && nx2 < GRID_W && !visited[ny][nx2] && Map[ny][nx2] != 0) { visited[ny][nx2] = true; stack.emplace_back(ny, nx2); }
-                    }
-                }
-            }
-        }
-    }
-
-    // 到達不可のバブルは落とす（消去）
-    for (int y = 0; y < GRID_H; ++y) {
-        for (int x = 0; x < GRID_W; ++x) {
-            if (Map[y][x] != 0 && !visited[y][x]) {
-                Map[y][x] = 0;
-            }
-        }
-    }
+    stage.Draw();
 }
 
-//---------------------------------------------------------------------------------
-//	初期化
-//---------------------------------------------------------------------------------
-void StageInit() {
-    // 盤面の初期化（配列で定義したステージを読み込む）
-    for (int y = 0; y < GRID_H; y++) {
-        for (int x = 0; x < GRID_W; x++) {
-            Map[y][x] = CurrentStage[y][x];
-        }
-    }
-    // バブル初期化（フィールドサイズ・バブルサイズ・基準位置等）
-    Bubble_Init();
+void StageExit()
+{
 
-    const int targetFieldW = 255;
-    const int targetFieldH = 320;
-    fieldWidth = targetFieldW;
-    fieldHeight = targetFieldH;
-
-    // フィールドを画面中央に配置
-    fieldOffsetX = (SCREEN_W - fieldWidth) / 2;
-    fieldTop = (SCREEN_H - fieldHeight) / 2;
-
-    // バブルは幅優先で合わせる（縦は犠牲にしてもよい）
-    int sizeByWidth = fieldWidth / GRID_W;   // 255/8 = 31
-    int sizeByHeight = fieldHeight / GRID_H; // 320/12 = 26
-    // 幅に合わせて大きくする（非正方セルや縦はみ出しを許容）
-    bubbleSize = sizeByWidth; // prioritize width
-    if (bubbleSize < 8) bubbleSize = 8;
-    bubbleRadius = bubbleSize / 2;
-
-    // フィールド内で実際にバブルが描かれる矩形（幅優先で大きくなるため縦がはみ出す可能性あり）
-    int usedWidth = bubbleSize * GRID_W;   
-    int usedHeight = bubbleSize * GRID_H;  
-    bubbleBaseX = fieldOffsetX + (fieldWidth - usedWidth) / 2;
-    bubbleBaseY = fieldTop + (fieldHeight - usedHeight) / 2;
-
-    // 発射台位置
-    launcherX = SCREEN_W / 2;
-    int proposedLauncherY = bubbleBaseY + usedHeight + 16;
-    if (proposedLauncherY > SCREEN_H - 16) proposedLauncherY = SCREEN_H - 16;
-    launcherY = proposedLauncherY;
-	shot_bubble.active = false;
-	shot_bubble.color = rand() % 4 + 1;
-	shot_bubble.angle = -3.14159265f / 2.0f; // 真上向き
 }
 
-//---------------------------------------------------------------------------------
-//	更新処理
-//---------------------------------------------------------------------------------
-void StageUpdate() {
-    // 更新時にバブルアニメーションを進める
-    Bubble_UpdateAnimations();
-	if (!shot_bubble.active) {
-		// 1. 角度調整
-		if (CheckHitKey(KEY_INPUT_LEFT))  shot_bubble.angle -= ROT_SPEED;
-		if (CheckHitKey(KEY_INPUT_RIGHT)) shot_bubble.angle += ROT_SPEED;
 
-		// 角度制限（真横より下に行かないように）
-		if (shot_bubble.angle < -3.14159265f + 0.2f) shot_bubble.angle = -3.14159265f + 0.2f;
-		if (shot_bubble.angle > -0.2f)               shot_bubble.angle = -0.2f;
-
-		shot_bubble.x = (float)launcherX;
-		shot_bubble.y = (float)launcherY;
-
-		// 2. 発射
-		if (PushHitKey(KEY_INPUT_SPACE)) {
-			shot_bubble.active = true;
-		}
-	}
-	else {
-		// 3. 移動
-		shot_bubble.x += GetLength_RotCos(shot_bubble.angle) * 8.0f;
-		shot_bubble.y += GetLength_RotSin(shot_bubble.angle) * 8.0f;
-
-        // 4. 壁反射（実際にバブルが描かれる領域での反射）
-        int usedWidth = bubbleSize * GRID_W;
-        if (shot_bubble.x < bubbleBaseX + bubbleRadius ||
-            shot_bubble.x > bubbleBaseX + usedWidth - bubbleRadius) {
-			float vx = GetLength_RotCos(shot_bubble.angle);
-			float vy = GetLength_RotSin(shot_bubble.angle);
-			shot_bubble.angle = GetRadian_Atan2(vy, -vx);
-		}
-
-		// 5. 当たり判定（盤面のバブルとの衝突）
-		bool hit = false;
-		for (int y = 0; y < GRID_H; y++) {
-			for (int x = 0; x < GRID_W; x++) {
-                if (Map[y][x] > 0) {
-            float offsetX = (y % 2 == 1) ? (float)bubbleRadius : 0.0f;
-                float targetX = bubbleBaseX + x * bubbleSize + bubbleRadius + offsetX;
-                float targetY = bubbleBaseY + y * bubbleSize + bubbleRadius;
-
-					// 距離の2乗で判定（ルート計算を省いて高速化）
-					float dx = shot_bubble.x - targetX;
-					float dy = shot_bubble.y - targetY;
-				if ((dx * dx + dy * dy) < (bubbleSize * bubbleSize * 0.9f)) {
-						hit = true;
-						break;
-					}
-				}
-			}
-			if (hit) break;
-		}
-
-        // 天井に当たった場合もヒット扱い
-        if (shot_bubble.y < bubbleBaseY + bubbleRadius) hit = true;
-
-		// 6. 衝突時の固定処理
-		if (hit) {
-			// 現在の座標からMapの添字(x, y)を逆算
-            int mapY = (int)((shot_bubble.y - bubbleBaseY) / bubbleSize);
-			if (mapY < 0) mapY = 0;
-			if (mapY >= GRID_H) mapY = GRID_H - 1;
-
-            float offsetX = (mapY % 2 == 1) ? (float)bubbleRadius : 0.0f;
-            int mapX = (int)((shot_bubble.x - bubbleBaseX - offsetX) / bubbleSize);
-			if (mapX < 0) mapX = 0;
-			if (mapX >= GRID_W) mapX = GRID_W - 1;
-
-			// Mapに色を書き込む
-			Map[mapY][mapX] = shot_bubble.color;
-			// 同色が3つ以上つながっていたら消す
-			RemoveConnectedSameColor(mapY, mapX);
-			// 連結削除の後、天井と繋がっていないバブルを落とす
-			RemoveFloatingBubbles();
-
-			// 次の玉を準備
-			shot_bubble.active = false;
-			shot_bubble.color = rand() % 4 + 1;
-		}
-	}
-}
-
-//---------------------------------------------------------------------------------
-//	描画処理
-//---------------------------------------------------------------------------------
-void StageRender() {
-	DrawGraph(0, 0, stage_1_3_image, TRUE);
-
-    // 盤面描画
-    for (int y = 0; y < GRID_H; y++) {
-        for (int x = 0; x < GRID_W; x++) {
-                if (Map[y][x] > 0) {
-                float offsetX = (y % 2 == 1) ? (float)bubbleRadius : 0.0f;
-                int drawX = (int)(bubbleBaseX + x * bubbleSize + bubbleRadius + offsetX);
-                int drawY = (int)(bubbleBaseY + y * bubbleSize + bubbleRadius);
-
-                int frameImg = Bubble_GetFrameImage(Map[y][x]);
-                if (frameImg > 0) {
-                    DrawGraph(drawX - bubbleRadius, drawY - bubbleRadius, frameImg, TRUE);
-                }
-                else {
-                    int sheet, sx, sy, sw, sh;
-                    if (Bubble_GetFrameSprite(Map[y][x], sheet, sx, sy, sw, sh)) {
-                        DrawRectGraph(drawX - bubbleRadius, drawY - bubbleRadius, sx, sy, sw, sh, sheet, TRUE);
-                    }
-                    else {
-                        DrawCircle(drawX, drawY, bubbleRadius, GetBubbleColor(Map[y][x]), TRUE);
-                    }
-                }
-            }
-        }
-    }
-
-<<<<<<< HEAD
-=======
-	
->>>>>>> cdb406a39dd891b4679e0309e936141065764b3f
-
-    // 砲台
-    DrawRotaGraph(launcherX, launcherY, 1.0, shot_bubble.angle + 1.5708f, cannon_image, TRUE);
-
-    // 発射バブル
-    {
-        int frameImg = Bubble_GetFrameImage(shot_bubble.color);
-        if (frameImg > 0) {
-            DrawGraph((int)shot_bubble.x - bubbleRadius, (int)shot_bubble.y - bubbleRadius, frameImg, TRUE);
-        } else {
-            int sheet, sx, sy, sw, sh;
-            if (Bubble_GetFrameSprite(shot_bubble.color, sheet, sx, sy, sw, sh)) {
-                DrawRectGraph((int)shot_bubble.x - bubbleRadius, (int)shot_bubble.y - bubbleRadius, sx, sy, sw, sh, sheet, TRUE);
-            } else {
-                DrawCircle((int)shot_bubble.x, (int)shot_bubble.y, bubbleRadius, GetBubbleColor(shot_bubble.color), TRUE);
-            }
-        }
-    }
-
-	DrawString(20, 20, "左右キー：角度調整 / SPACE：発射", GetColor(255, 255, 255));
-}
-
-void StageExit() {}
