@@ -1,6 +1,9 @@
 #pragma once
 #include "DxLib.h"
+<<<<<<< HEAD
 #include "Game.h"
+=======
+>>>>>>> 87c477732e4cb1e60f6b3e5d81b8d61b0456bda0
 
 class Bubble {
 public:
@@ -8,6 +11,7 @@ public:
     float vx, vy;
     int color;
     bool isActive;
+<<<<<<< HEAD
 
     // スプライトベース描画用のアニメーション状態
     int animFrame;       // 現在のフレーム番号
@@ -27,4 +31,11 @@ public:
     void Init(float startX, float startY, float speedX, float speedY, int col);
     void Update(); //
     void Draw();   //
+=======
+
+    Bubble();
+    void Init(float startX, float startY, float speedX, float speedY, int col);
+    void Update(); // 移動と壁反射の処理
+    void Draw();   // 自身の描画
+>>>>>>> 87c477732e4cb1e60f6b3e5d81b8d61b0456bda0
 };

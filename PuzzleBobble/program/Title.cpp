@@ -22,7 +22,11 @@ void TitleInit()
 void TitleUpdate()
 {
 	//	エンターを押したら
+<<<<<<< HEAD
 	if (PushHitKey(KEY_INPUT_RETURN)) {
+=======
+	if( PushHitKey( KEY_INPUT_RETURN ) ){
+>>>>>>> 87c477732e4cb1e60f6b3e5d81b8d61b0456bda0
 		//	次に行きたいシーン番号を設定しています
 		scene_next = SCENE_STAGE;
 	}

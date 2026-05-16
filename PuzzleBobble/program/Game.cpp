@@ -13,11 +13,16 @@ int title_image;
 int stage_1_3_image;
 int result_image;
 int button_image;
+<<<<<<< HEAD
 int cannon_image;
 // バブル画像：色 x 状態 x フレーム
 int bubble_images[BUBBLE_COLOR_COUNT][BUBBLE_STATE_COUNT][BUBBLE_MAX_FRAMES];
 // 各色・状態ごとの実際のフレーム数
 int bubble_frame_counts[BUBBLE_COLOR_COUNT][BUBBLE_STATE_COUNT];
+=======
+int cannon_image;      // ★追加：砲台
+int bubble_images[5];    // ★追加：玉（配列96個分）
+>>>>>>> 87c477732e4cb1e60f6b3e5d81b8d61b0456bda0
 int ceiling_image;
 
 //---------------------------------------------------------------------------------
@@ -33,6 +38,7 @@ void GameInit()
 	cannon_image = LoadGraph("data/cannon.png");
 	// LoadDivGraph(ファイル名, 枚数, 横の分割数, 縦の分割数, 1枚の幅, 1枚の高さ, 保存先配列)
 	//LoadDivGraph("data/cannon_anim.png", 8, 8, 1, 64, 64, cannon_images);
+<<<<<<< HEAD
     // バッファを初期化
     for (int i = 0; i < BUBBLE_COLOR_COUNT; i++) {
         for (int j = 0; j < BUBBLE_STATE_COUNT; j++) {
@@ -50,6 +56,12 @@ void GameInit()
     bubble_frame_counts[1][BUBBLE_SHOT] = 1;
 
 
+=======
+	LoadDivGraph("data/red_wait.png", 2, 2, 1, 32, 16, bubble_images);
+	LoadDivGraph("data/red_shot.png", 6, 6, 1, 96, 16, bubble_images);
+	
+	
+>>>>>>> 87c477732e4cb1e60f6b3e5d81b8d61b0456bda0
 	title_image = LoadGraph("data/title.png");
 
 	TitleInit();

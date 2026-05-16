@@ -10,9 +10,15 @@ float GetLength_Rotsin(float rot);
 float GetRadian_Lengthatan2f(float sin, float cos);
 
 extern int stage_1_3_image;
+<<<<<<< HEAD
 extern int cannon_image;
 
 extern int ceilingOffset; // 天井が下がったピクセル数
+=======
+extern int cannon_image;      
+extern int bubble_images[];   
+int ceilingOffset = 0; // 天井が下がったピクセル数
+>>>>>>> 87c477732e4cb1e60f6b3e5d81b8d61b0456bda0
 #define SCROLL_STEP  15 
 
 #define MAX_COLOR_NUM 4  // 赤、青、緑、黄
@@ -42,6 +48,7 @@ extern int ceilingOffset; // 天井が下がったピクセル数
 #define SHOT_LIMIT 8
 
 const int STAGE_DATA_1[STAGE_ROWS][STAGE_COLS] = {
+<<<<<<< HEAD
     {1, 2, 2, 2, 2, 4, 4, 0}, // 0行目
     {2, 0, 2, 1, 0, 0, 2, 0}, // 1行目（奇数行）
     {0, 2, 0, 0, 0, 0, 0, 0}, // 2行目
@@ -49,6 +56,15 @@ const int STAGE_DATA_1[STAGE_ROWS][STAGE_COLS] = {
     {0, 0, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0},
+=======
+    {1, 0, 2, 0, 0, 4, 4, 0}, // 0行目
+    {1, 0, 2, 0, 0, 0, 0, 0}, // 1行目（奇数行）
+    {1, 0, 0, 0, 0, 0, 0, 0}, // 2行目
+    {1, 0, 0, 0, 0, 0, 0, 0}, // 3行目...
+    {1, 0, 0, 0, 0, 0, 0, 0},
+    {1, 0, 0, 0, 0, 0, 0, 0},
+    {1, 0, 0, 0, 0, 0, 0, 0},
+>>>>>>> 87c477732e4cb1e60f6b3e5d81b8d61b0456bda0
     {0, 0, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, 0, 0},
@@ -58,15 +74,25 @@ const int STAGE_DATA_1[STAGE_ROWS][STAGE_COLS] = {
 
 
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 87c477732e4cb1e60f6b3e5d81b8d61b0456bda0
 // Bubble speed
 #define B_SPEED 8.0f
 
 struct MovingBubble {
+<<<<<<< HEAD
     float x, y;    // 現在の座標（壁反射や移動の計算に使うので float）
     float vx, vy;  // 移動速度（1フレームごとに x, y に加算する値）
     int color;     // バブルの色（DxLibの GetColor で取得した値）
     bool isActive; // 今、画面内を飛んでいるかどうか
+=======
+	float x, y;    // 現在の座標（壁反射や移動の計算に使うので float）
+	float vx, vy;  // 移動速度（1フレームごとに x, y に加算する値）
+	int color;     // バブルの色（DxLibの GetColor で取得した値）
+	bool isActive; // 今、画面内を飛んでいるかどうか
+>>>>>>> 87c477732e4cb1e60f6b3e5d81b8d61b0456bda0
 
     void Draw() {
         if (!isActive) return;
@@ -84,9 +110,15 @@ private:
     int field[STAGE_ROWS][STAGE_COLS];
     bool isSafe[STAGE_ROWS][STAGE_COLS];
 
+<<<<<<< HEAD
     float cannonAngle; // 角度（ラジアン）
     float cannonX;     // キャノンの中心座標X
     float cannonY;     // キャノンの中心座標Y
+=======
+	float cannonAngle; // 角度（ラジアン）
+	float cannonX;     // キャノンの中心座標X
+	float cannonY;     // キャノンの中心座標Y
+>>>>>>> 87c477732e4cb1e60f6b3e5d81b8d61b0456bda0
 
 public:
     Stage();
@@ -95,8 +127,13 @@ public:
     void HandleInput();
     void Update();
     void ScrollDown();
+<<<<<<< HEAD
     void CheckConnect(int r, int c, int color);
     void ProcessErase(int startR, int startC);
+=======
+	void CheckConnect(int r, int c, int color);
+	void ProcessErase(int startR, int startC);
+>>>>>>> 87c477732e4cb1e60f6b3e5d81b8d61b0456bda0
     void DropFloatingBubbles();
     void CheckSafe(int r, int c);
     void Draw();

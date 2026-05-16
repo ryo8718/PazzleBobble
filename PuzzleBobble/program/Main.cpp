@@ -141,7 +141,11 @@ float TO_DEGREE(float radian)
 //---------------------------------------------------------------------------------
 //	長さ 1.0f の線を rot 分回転させたときに rot に沿っている分の長さを取得する関数
 //---------------------------------------------------------------------------------
+<<<<<<< HEAD
 float GetLength_Rotcos(float rot)
+=======
+float GetLength_Rotcos( float rot )
+>>>>>>> 87c477732e4cb1e60f6b3e5d81b8d61b0456bda0
 {
 	//	cos（コサイン）関数です
 	return cosf(rot);
@@ -149,7 +153,11 @@ float GetLength_Rotcos(float rot)
 //---------------------------------------------------------------------------------
 //	長さ 1.0f の線を rot 分回転させたときに rot の向かいにある分の長さを取得する関数
 //---------------------------------------------------------------------------------
+<<<<<<< HEAD
 float GetLength_Rotsin(float rot)
+=======
+float GetLength_Rotsin( float rot )
+>>>>>>> 87c477732e4cb1e60f6b3e5d81b8d61b0456bda0
 {
 	//	sin（サイン）関数です
 	return sinf(rot);
@@ -157,8 +165,16 @@ float GetLength_Rotsin(float rot)
 //---------------------------------------------------------------------------------
 //	長さ（向かい・沿って）でできる斜め線がどの向きなのかをラジアン角で返す関数
 //---------------------------------------------------------------------------------
+<<<<<<< HEAD
 float GetRadian_Lengthatan2f(float sin, float cos)
 {
 	//	アークタンジェント関数です
 	return atan2f(sin, cos);
 }
+=======
+float GetRadian_Lengthatan2f( float sin, float cos )
+{
+	//	アークタンジェント関数です
+	return atan2f( sin, cos );
+}
+>>>>>>> 87c477732e4cb1e60f6b3e5d81b8d61b0456bda0
